@@ -1,0 +1,27 @@
+{
+  "archive_path": "data/pheme_raw/pheme-rnr-dataset.tar.bz2",
+  "processed_dir": "data/processed_smoke",
+  "results_dir": "experiments/results_smoke_matrix",
+  "events": [
+    "germanwings-crash"
+  ],
+  "attacks": [
+    "llm"
+  ],
+  "ratios": [
+    0.1
+  ],
+  "defenses": [
+    "D0",
+    "D_all"
+  ],
+  "retrieve_k": 4,
+  "final_k": 3,
+  "max_per_event_label": 4,
+  "max_clean_docs": 4,
+  "max_rumour_pool": 8,
+  "embedding_batch_size": 8,
+  "parallelism": 1,
+  "chat_model": "ecnu-plus",
+  "allow_fallback_judge": false
+}

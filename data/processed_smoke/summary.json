@@ -1,0 +1,32 @@
+{
+  "num_docs": 40,
+  "events": {
+    "charliehebdo": {
+      "rumour": 4,
+      "non-rumour": 4
+    },
+    "ferguson": {
+      "rumour": 4,
+      "non-rumour": 4
+    },
+    "germanwings-crash": {
+      "rumour": 4,
+      "non-rumour": 4
+    },
+    "ottawashooting": {
+      "rumour": 4,
+      "non-rumour": 4
+    },
+    "sydneysiege": {
+      "rumour": 4,
+      "non-rumour": 4
+    }
+  },
+  "queries": {
+    "charliehebdo": "Summarize the key facts and latest developments about Charliehebdo.",
+    "ferguson": "Summarize the key facts and latest developments about Ferguson.",
+    "germanwings-crash": "Summarize the key facts and latest developments about Germanwings Crash.",
+    "ottawashooting": "Summarize the key facts and latest developments about Ottawashooting.",
+    "sydneysiege": "Summarize the key facts and latest developments about Sydneysiege."
+  }
+}

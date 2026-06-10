@@ -1,0 +1,52 @@
+{
+  "num_docs": 6425,
+  "events": {
+    "charliehebdo": {
+      "rumour": 458,
+      "non-rumour": 1621
+    },
+    "ebola-essien": {
+      "rumour": 14,
+      "non-rumour": 0
+    },
+    "ferguson": {
+      "rumour": 284,
+      "non-rumour": 859
+    },
+    "germanwings-crash": {
+      "rumour": 238,
+      "non-rumour": 231
+    },
+    "gurlitt": {
+      "rumour": 61,
+      "non-rumour": 77
+    },
+    "ottawashooting": {
+      "rumour": 470,
+      "non-rumour": 420
+    },
+    "prince-toronto": {
+      "rumour": 229,
+      "non-rumour": 4
+    },
+    "putinmissing": {
+      "rumour": 126,
+      "non-rumour": 112
+    },
+    "sydneysiege": {
+      "rumour": 522,
+      "non-rumour": 699
+    }
+  },
+  "queries": {
+    "charliehebdo": "Summarize the key facts and latest developments about Charliehebdo.",
+    "ebola-essien": "Summarize the key facts and latest developments about Ebola Essien.",
+    "ferguson": "Summarize the key facts and latest developments about Ferguson.",
+    "germanwings-crash": "Summarize the key facts and latest developments about Germanwings Crash.",
+    "gurlitt": "Summarize the key facts and latest developments about Gurlitt.",
+    "ottawashooting": "Summarize the key facts and latest developments about Ottawashooting.",
+    "prince-toronto": "Summarize the key facts and latest developments about Prince Toronto.",
+    "putinmissing": "Summarize the key facts and latest developments about Putinmissing.",
+    "sydneysiege": "Summarize the key facts and latest developments about Sydneysiege."
+  }
+}
