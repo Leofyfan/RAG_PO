@@ -28,7 +28,7 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--events", default="", help="Comma-separated PHEME event ids. Empty means all parsed events.")
     parser.add_argument("--attacks", default="random", help="Comma-separated: random,semantic,llm")
     parser.add_argument("--ratios", default="0.1", help="Comma-separated poison ratios, e.g. 0,0.1,0.3,0.5")
-    parser.add_argument("--defenses", default="D0,D_all", help="Comma-separated: D0,D1,D2,D3,D4,D_all")
+    parser.add_argument("--defenses", default="D0,D_all", help="Comma-separated: D0,D1,D2,D3,D4,D123,D34,D234,D_all")
     parser.add_argument("--retrieve-k", type=int, default=10)
     parser.add_argument("--final-k", type=int, default=5)
     parser.add_argument("--max-per-event-label", type=int, default=30)

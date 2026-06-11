@@ -93,5 +93,8 @@ DEFENSE_SPECS: dict[str, DefenseSpec] = {
     "D2": DefenseSpec("D2", consistency=True),
     "D3": DefenseSpec("D3", social=True),
     "D4": DefenseSpec("D4", critical_prompt=True),
+    "D123": DefenseSpec("D123", outlier=True, consistency=True, social=True),
+    "D34": DefenseSpec("D34", social=True, critical_prompt=True),
+    "D234": DefenseSpec("D234", consistency=True, social=True, critical_prompt=True),
     "D_all": DefenseSpec("D_all", outlier=True, consistency=True, social=True, critical_prompt=True),
 }

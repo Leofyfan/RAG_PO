@@ -286,3 +286,47 @@ class CliPrepareArgsTests(unittest.TestCase):
 
         self.assertIsNone(prepare_limit_from_args(Namespace(max_per_event_label=-1)))
         self.assertEqual(prepare_limit_from_args(Namespace(max_per_event_label=3)), 3)
+
+class LeakageAndAblationTests(unittest.TestCase):
+    def test_generation_context_does_not_include_ground_truth_label_or_attack(self):
+        from rag_po.rag.generator import build_context
+
+        doc = make_doc("p1", label="rumour", attack="llm", text="A suspicious claim")
+        context = build_context([doc])
+        self.assertNotIn("label=", context)
+        self.assertNotIn("RUMOUR", context)
+        self.assertNotIn("NON_RUMOUR", context)
+        self.assertNotIn("attack", context.lower())
+        self.assertIn("text=A suspicious claim", context)
+
+    def test_consistency_score_does_not_use_attack_ground_truth(self):
+        from rag_po.defense.consistency import document_suspicion_score
+
+        plain = make_doc("plain", text="Unconfirmed source claims the crash timeline changed")
+        attacked = make_doc("attacked", text="Unconfirmed source claims the crash timeline changed", attack="llm")
+        self.assertEqual(document_suspicion_score(plain), document_suspicion_score(attacked))
+
+    def test_consistency_filter_removes_numeric_and_outcome_conflict_against_majority(self):
+        docs = [
+            make_doc("m1", text="Officials say Flight 4U9525 crashed in the French Alps with 150 people onboard."),
+            make_doc("m2", text="Police confirm Flight 4U9525 crashed in the French Alps with 150 people onboard."),
+            make_doc("bad", text="Witnesses say Flight 4U9525 safely landed in Nice with 0 casualties."),
+        ]
+        kept, audit = consistency_filter(docs)
+        self.assertEqual([doc.doc_id for doc in kept], ["m1", "m2"])
+        self.assertIn("bad", audit["removed_ids"])
+        self.assertGreater(audit["suspicion_scores"]["bad"], audit["suspicion_scores"]["m1"])
+
+    def test_defense_specs_include_requested_ablation_combinations(self):
+        from rag_po.models import DEFENSE_SPECS
+
+        self.assertTrue(DEFENSE_SPECS["D123"].outlier)
+        self.assertTrue(DEFENSE_SPECS["D123"].consistency)
+        self.assertTrue(DEFENSE_SPECS["D123"].social)
+        self.assertFalse(DEFENSE_SPECS["D123"].critical_prompt)
+        self.assertEqual((DEFENSE_SPECS["D34"].social, DEFENSE_SPECS["D34"].critical_prompt), (True, True))
+        self.assertFalse(DEFENSE_SPECS["D34"].outlier)
+        self.assertEqual(
+            (DEFENSE_SPECS["D234"].consistency, DEFENSE_SPECS["D234"].social, DEFENSE_SPECS["D234"].critical_prompt),
+            (True, True, True),
+        )

@@ -9,11 +9,10 @@ from rag_po.text_utils import compact_for_prompt
 def build_context(docs: list[TweetDocument], max_doc_chars: int = 520) -> str:
     lines: list[str] = []
     for idx, doc in enumerate(docs, start=1):
-        label = "RUMOUR" if doc.is_rumour else "NON_RUMOUR"
         user = doc.user or {}
         verified = "verified" if user.get("verified") else "unverified"
         lines.append(
-            f"[{idx}] label={label}; event={doc.event}; user={verified}; "
+            f"[{idx}] event={doc.event}; user={verified}; "
             f"reactions={doc.reaction_count}; denies={doc.deny_count}; text={compact_for_prompt(doc.text, max_doc_chars)}"
         )
     return "\n".join(lines)

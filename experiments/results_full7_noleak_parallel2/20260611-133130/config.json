@@ -1,0 +1,45 @@
+{
+  "archive_path": "data/pheme_raw/PHEME_veracity.tar.bz2",
+  "processed_dir": "data/processed_full9",
+  "results_dir": "experiments/results_full7_noleak_parallel2",
+  "events": [
+    "charliehebdo",
+    "ferguson",
+    "germanwings-crash",
+    "gurlitt",
+    "ottawashooting",
+    "putinmissing",
+    "sydneysiege"
+  ],
+  "attacks": [
+    "random",
+    "semantic",
+    "llm"
+  ],
+  "ratios": [
+    0.0,
+    0.1,
+    0.3,
+    0.5
+  ],
+  "defenses": [
+    "D0",
+    "D1",
+    "D2",
+    "D3",
+    "D4",
+    "D123",
+    "D34",
+    "D234",
+    "D_all"
+  ],
+  "retrieve_k": 10,
+  "final_k": 5,
+  "max_per_event_label": null,
+  "max_clean_docs": 0,
+  "max_rumour_pool": 0,
+  "embedding_batch_size": 32,
+  "parallelism": 2,
+  "chat_model": "ecnu-plus",
+  "allow_fallback_judge": false
+}
