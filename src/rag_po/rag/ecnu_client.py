@@ -94,17 +94,21 @@ class ECNUClient:
         temperature: float = 0.2,
         model: str | None = None,
         thinking: bool = False,
+        max_tokens: int | None = None,
     ) -> dict[str, object]:
         selected_model = model or self.chat_model
         if selected_model not in ECNU_CHAT_MODELS:
             raise ValueError(f"Unsupported ECNU chat model: {selected_model}")
-        return {
+        payload: dict[str, object] = {
             "model": selected_model,
             "messages": messages,
             "stream": False,
             "temperature": temperature,
             "thinking": {"type": "enabled" if thinking else "disabled"},
         }
+        if max_tokens is not None and max_tokens > 0:
+            payload["max_tokens"] = max_tokens
+        return payload
 
     def _post_json(self, endpoint: str, payload: dict[str, object]) -> dict[str, Any]:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
@@ -165,8 +169,15 @@ class ECNUClient:
         model: str | None = None,
         thinking: bool = False,
         cache_namespace: str = "chat",
+        max_tokens: int | None = None,
     ) -> str:
-        payload = self.chat_payload(messages, temperature=temperature, model=model, thinking=thinking)
+        payload = self.chat_payload(
+            messages,
+            temperature=temperature,
+            model=model,
+            thinking=thinking,
+            max_tokens=max_tokens,
+        )
         key = json.dumps(payload, ensure_ascii=False, sort_keys=True)
         cached = self.cache.get(cache_namespace, key)
         if cached is not None:

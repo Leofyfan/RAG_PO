@@ -85,6 +85,10 @@ class DefenseSpec:
     consistency: bool = False
     social: bool = False
     critical_prompt: bool = False
+    mmr: bool = False
+    dedup: bool = False
+    trust_weighted: bool = False
+    prompt_mode: str = "critical"
 
 
 DEFENSE_SPECS: dict[str, DefenseSpec] = {
@@ -97,4 +101,12 @@ DEFENSE_SPECS: dict[str, DefenseSpec] = {
     "D34": DefenseSpec("D34", social=True, critical_prompt=True),
     "D234": DefenseSpec("D234", consistency=True, social=True, critical_prompt=True),
     "D_all": DefenseSpec("D_all", outlier=True, consistency=True, social=True, critical_prompt=True),
+    "D_star": DefenseSpec(
+        "D_star",
+        critical_prompt=True,
+        mmr=True,
+        dedup=True,
+        trust_weighted=True,
+        prompt_mode="tri_state",
+    ),
 }

@@ -133,6 +133,25 @@ class RagAndMetricTests(unittest.TestCase):
         self.assertEqual(metrics["avg_poison_rank"], 2.0)
 
 
+class IoUtilsTests(unittest.TestCase):
+    def test_write_jsonl_keeps_existing_file_when_iterable_fails(self):
+        from rag_po.io_utils import write_jsonl
+
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as tmp:
+            path = Path(tmp) / "rows.jsonl"
+            path.write_text(json.dumps({"old": True}) + "\n", encoding="utf-8")
+
+            def broken_rows():
+                yield {"new": 1}
+                raise RuntimeError("boom")
+
+            with self.assertRaises(RuntimeError):
+                write_jsonl(path, broken_rows())
+
+            self.assertEqual(path.read_text(encoding="utf-8"), json.dumps({"old": True}) + "\n")
+            self.assertEqual(list(Path(tmp).glob("*.tmp")), [])
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -330,3 +349,225 @@ class LeakageAndAblationTests(unittest.TestCase):
             (DEFENSE_SPECS["D234"].consistency, DEFENSE_SPECS["D234"].social, DEFENSE_SPECS["D234"].critical_prompt),
             (True, True, True),
         )
+
+class ImprovementPlanTests(unittest.TestCase):
+    def test_fallback_generated_posts_are_distinct_for_large_n(self):
+        from rag_po.attack.llm_generate import fallback_generated_posts
+
+        posts = fallback_generated_posts("putinmissing", "Where is Putin?", 12, attack="a1")
+        self.assertEqual(len(posts), 12)
+        self.assertEqual(len(set(posts)), 12)
+        self.assertTrue(any("official" in p.lower() or "reuters" in p.lower() for p in posts))
+
+    def test_a3_generated_docs_use_high_trust_social_metadata(self):
+        from rag_po.attack.llm_generate import make_generated_doc
+        from rag_po.defense.social_rerank import social_credibility_score
+
+        a3 = make_generated_doc("demo", "Officials confirmed a false claim.", 1, "query", attack="a3")
+        basic = make_generated_doc("demo", "Officials confirmed a false claim.", 1, "query", attack="llm")
+        self.assertTrue(a3.user["verified"])
+        self.assertGreater(a3.user["followers_count"], basic.user["followers_count"])
+        self.assertGreater(social_credibility_score(a3), social_credibility_score(basic))
+
+    def test_mmr_search_keeps_diverse_documents(self):
+        from rag_po.rag.vectordb import InMemoryVectorStore
+
+        docs = [
+            make_doc("near1", embedding=[1.0, 0.0]),
+            make_doc("near2", embedding=[0.99, 0.01]),
+            make_doc("diverse", embedding=[0.65, 0.76]),
+        ]
+        store = InMemoryVectorStore(docs)
+        topk = [r.doc.doc_id for r in store.search([1.0, 0.0], top_k=2)]
+        mmr = [r.doc.doc_id for r in store.search_mmr([1.0, 0.0], top_k=2, lambda_mult=0.5, fetch_k=3)]
+        self.assertEqual(topk, ["near1", "near2"])
+        self.assertEqual(mmr, ["near1", "diverse"])
+
+    def test_trust_aware_dedup_keeps_highest_trust_representative(self):
+        from rag_po.defense.dedup import trust_aware_dedup
+
+        low = make_doc("low", embedding=[1.0, 0.0], followers_count=1, friends_count=1000, verified=False)
+        high = make_doc("high", embedding=[0.99, 0.01], followers_count=100000, friends_count=100, verified=True, listed_count=500)
+        other = make_doc("other", embedding=[0.0, 1.0])
+        kept, audit = trust_aware_dedup([low, high, other], threshold=0.95)
+        self.assertIn("high", [d.doc_id for d in kept])
+        self.assertNotIn("low", [d.doc_id for d in kept])
+        self.assertTrue(any(cluster["size"] == 2 for cluster in audit["clusters"]))
+
+    def test_dstar_spec_enables_mmr_dedup_trust_and_tri_state_prompt(self):
+        from rag_po.models import DEFENSE_SPECS
+
+        spec = DEFENSE_SPECS["D_star"]
+        self.assertTrue(spec.mmr)
+        self.assertTrue(spec.dedup)
+        self.assertTrue(spec.trust_weighted)
+        self.assertTrue(spec.critical_prompt)
+        self.assertEqual(spec.prompt_mode, "tri_state")
+        self.assertFalse(spec.outlier)
+
+    def test_trust_weighted_claim_ranking_adds_observable_weights(self):
+        from rag_po.defense.claim_extract import trust_weighted_claim_rank
+
+        low = make_doc(
+            "low",
+            text="Posts allege 42 people were affected in the incident.",
+            embedding=[1.0, 0.0],
+            followers_count=1,
+            friends_count=1000,
+            verified=False,
+        )
+        high = make_doc(
+            "high",
+            text="Police statement says 42 people were affected in the incident.",
+            embedding=[0.99, 0.01],
+            followers_count=100000,
+            friends_count=100,
+            verified=True,
+            listed_count=500,
+        )
+        ranked, audit = trust_weighted_claim_rank([low, high], {"low": 0.99, "high": 0.95})
+        self.assertEqual(ranked[0].doc_id, "high")
+        self.assertIn("defense", ranked[0].metadata)
+        self.assertIn("trust", ranked[0].metadata["defense"])
+        self.assertIn("claim_support", ranked[0].metadata["defense"])
+        self.assertIn("number_votes", audit)
+
+    def test_query_variants_and_repeats_expand_tasks_and_filenames(self):
+        from rag_po.pipeline import ExperimentConfig, build_experiment_tasks, result_filename
+
+        config = ExperimentConfig(
+            events=("demo",), attacks=("llm",), ratios=(0.1,), defenses=("D0", "D_star"), query_variants=3, repeats=2
+        )
+        queries = {"demo": "Summarize demo."}
+        tasks = build_experiment_tasks(["demo"], queries, config)
+        self.assertEqual(len(tasks), 12)
+        names = {result_filename(task.event, task.attack, task.ratio, task.defense, task.query_variant_index, task.repeat) for task in tasks}
+        self.assertEqual(len(names), len(tasks))
+        self.assertTrue(any("q2" in name and "r1" in name for name in names))
+
+    def test_completed_rows_can_be_loaded_for_resume(self):
+        from rag_po.io_utils import write_json
+        from rag_po.pipeline import load_completed_rows, result_filename
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            row = {
+                "event": "demo",
+                "attack": "a1",
+                "ratio": 0.3,
+                "defense": "D_star",
+                "query_variant_index": 2,
+                "repeat": 1,
+            }
+            write_json(out / result_filename("demo", "a1", 0.3, "D_star", 2, 1), row)
+            rows = load_completed_rows(out)
+            self.assertEqual(len(rows), 1)
+            self.assertIn(("demo", "a1", 0.3, "D_star", 2, 1), rows)
+
+    def test_ensure_embeddings_reuses_existing_doc_and_query_embeddings(self):
+        from rag_po.io_utils import write_json
+        from rag_po.pipeline import ExperimentConfig, ensure_embeddings
+
+        class FakeClient:
+            def embed_texts(self, texts, batch_size=32, parallelism=1):
+                raise AssertionError(f"unexpected embedding call: {texts}")
+
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as tmp:
+            processed = Path(tmp)
+            embedded_path = processed / "documents.embedded.jsonl"
+            embedded_path.write_text("already embedded\n", encoding="utf-8")
+            write_json(processed / "query_embeddings.json", {"demo::q0": [0.1, 0.2]})
+            docs = [make_doc("d1", embedding=[1.0, 0.0])]
+            config = ExperimentConfig(processed_dir=str(processed), embedding_batch_size=2, parallelism=2)
+
+            returned_docs, query_embeddings = ensure_embeddings(
+                FakeClient(),
+                docs,
+                {"demo::q0": "Summarize demo."},
+                config,
+            )
+
+            self.assertEqual(returned_docs[0].embedding, [1.0, 0.0])
+            self.assertEqual(query_embeddings, {"demo::q0": [0.1, 0.2]})
+            self.assertEqual(embedded_path.read_text(encoding="utf-8"), "already embedded\n")
+
+    def test_llm_attack_request_count_is_capped_but_preserves_small_requests(self):
+        from rag_po.pipeline import llm_attack_request_count
+
+        self.assertEqual(llm_attack_request_count(8, 24), 8)
+        self.assertEqual(llm_attack_request_count(200, 24), 24)
+        self.assertEqual(llm_attack_request_count(200, 0), 200)
+
+    def test_chat_payload_can_limit_completion_tokens(self):
+        from rag_po.rag.ecnu_client import ECNUClient
+
+        client = ECNUClient(api_key="test-key", cache_dir=None)
+        payload = client.chat_payload([{"role": "user", "content": "hi"}], max_tokens=123)
+        self.assertEqual(payload["max_tokens"], 123)
+
+    def test_skip_llm_attack_api_uses_fallback_generation_without_chat(self):
+        from rag_po.pipeline import ExperimentConfig, should_call_llm_attack_api
+
+        self.assertFalse(should_call_llm_attack_api(ExperimentConfig(skip_llm_attack_api=True), "a1", 10))
+        self.assertTrue(should_call_llm_attack_api(ExperimentConfig(skip_llm_attack_api=False), "a1", 1))
+        self.assertFalse(should_call_llm_attack_api(ExperimentConfig(skip_llm_attack_api=False), "random", 1))
+
+    def test_judge_retries_non_json_response_without_fallback(self):
+        from rag_po.evaluation.llm_judge import judge_summary
+
+        class FakeClient:
+            def __init__(self):
+                self.calls = 0
+
+            def chat(self, messages, temperature=0.0, cache_namespace="judges", max_tokens=None):
+                self.calls += 1
+                if self.calls == 1:
+                    return ""
+                return json.dumps({
+                    "factual_accuracy": 5,
+                    "misinfo_propagation": 5,
+                    "uncertainty_expression": 4,
+                    "overall_trustworthiness": 5,
+                    "reasoning": "valid retry",
+                })
+
+        result = judge_summary(
+            FakeClient(),
+            query="q",
+            clean_summary="clean",
+            eval_summary="eval",
+            retrieved_docs=[make_doc("d")],
+            allow_fallback=False,
+        )
+        self.assertEqual(result["reasoning"], "valid retry")
+
+    def test_judge_bypasses_repeated_bad_cached_responses_with_fresh_retry_namespace(self):
+        from rag_po.evaluation.llm_judge import judge_summary
+
+        class FakeClient:
+            def __init__(self):
+                self.namespaces = []
+
+            def chat(self, messages, temperature=0.0, cache_namespace="judges", max_tokens=None):
+                self.namespaces.append(cache_namespace)
+                if len(self.namespaces) < 3:
+                    return ""
+                return json.dumps({
+                    "factual_accuracy": 4,
+                    "misinfo_propagation": 5,
+                    "uncertainty_expression": 4,
+                    "overall_trustworthiness": 4,
+                    "reasoning": "fresh retry",
+                })
+
+        client = FakeClient()
+        result = judge_summary(
+            client,
+            query="q",
+            clean_summary="clean",
+            eval_summary="eval",
+            retrieved_docs=[make_doc("d")],
+            allow_fallback=False,
+        )
+        self.assertEqual(result["reasoning"], "fresh retry")
+        self.assertEqual(client.namespaces, ["judges", "judges_retry_1", "judges_retry_2"])

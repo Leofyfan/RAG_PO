@@ -1,0 +1,28 @@
+{
+  "archive_path": "data/pheme_raw/PHEME_veracity.tar.bz2",
+  "processed_dir": "data/processed_full9",
+  "results_dir": "experiments/results_improved_smoke",
+  "events": [
+    "germanwings-crash"
+  ],
+  "attacks": [
+    "a1"
+  ],
+  "ratios": [
+    0.1
+  ],
+  "defenses": [
+    "D_star"
+  ],
+  "retrieve_k": 10,
+  "final_k": 5,
+  "max_per_event_label": null,
+  "max_clean_docs": 4,
+  "max_rumour_pool": 10,
+  "embedding_batch_size": 8,
+  "parallelism": 1,
+  "query_variants": 1,
+  "repeats": 1,
+  "chat_model": "ecnu-plus",
+  "allow_fallback_judge": false
+}

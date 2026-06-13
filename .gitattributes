@@ -4,3 +4,4 @@ experiments/results_full9_parallel2/20260609-222153/results.json filter=lfs diff
 *.tar.gz filter=lfs diff=lfs merge=lfs -text
 *.tar.bz2 filter=lfs diff=lfs merge=lfs -text
 *.jsonl filter=lfs diff=lfs merge=lfs -text
+experiments/**/results.json filter=lfs diff=lfs merge=lfs -text

@@ -26,9 +26,9 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--processed-dir", default="data/processed")
     parser.add_argument("--results-dir", default="experiments/results")
     parser.add_argument("--events", default="", help="Comma-separated PHEME event ids. Empty means all parsed events.")
-    parser.add_argument("--attacks", default="random", help="Comma-separated: random,semantic,llm")
+    parser.add_argument("--attacks", default="random", help="Comma-separated: random,semantic,llm,a1,a2,a3")
     parser.add_argument("--ratios", default="0.1", help="Comma-separated poison ratios, e.g. 0,0.1,0.3,0.5")
-    parser.add_argument("--defenses", default="D0,D_all", help="Comma-separated: D0,D1,D2,D3,D4,D123,D34,D234,D_all")
+    parser.add_argument("--defenses", default="D0,D_all", help="Comma-separated: D0,D1,D2,D3,D4,D123,D34,D234,D_all,D_star")
     parser.add_argument("--retrieve-k", type=int, default=10)
     parser.add_argument("--final-k", type=int, default=5)
     parser.add_argument("--max-per-event-label", type=int, default=30)
@@ -36,8 +36,15 @@ def _add_run_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-rumour-pool", type=int, default=80)
     parser.add_argument("--embedding-batch-size", type=int, default=16)
     parser.add_argument("--parallelism", type=int, default=1)
+    parser.add_argument("--query-variants", type=int, default=1)
+    parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--chat-model", default="ecnu-plus", choices=["ecnu-plus", "ecnu-max"])
     parser.add_argument("--allow-fallback-judge", action="store_true")
+    parser.add_argument("--resume-dir", default="", help="Existing result directory to resume; completed cell JSON files are skipped.")
+    parser.add_argument("--api-timeout", type=int, default=120)
+    parser.add_argument("--api-retries", type=int, default=3)
+    parser.add_argument("--max-llm-attack-posts", type=int, default=24, help="Cap posts requested from the LLM; remaining poison docs use diverse adaptive templates. 0 disables the cap.")
+    parser.add_argument("--skip-llm-attack-api", action="store_true", help="Use adaptive fallback templates for poison text generation while keeping ECNU embeddings, summaries, and judges.")
     parser.add_argument("--api-key", default=None, help="Prefer ECNU_API_KEY env var; this flag is for local runs only.")
 
 
@@ -72,8 +79,15 @@ def config_from_args(args: argparse.Namespace) -> ExperimentConfig:
         max_rumour_pool=args.max_rumour_pool,
         embedding_batch_size=args.embedding_batch_size,
         parallelism=args.parallelism,
+        query_variants=args.query_variants,
+        repeats=args.repeats,
         chat_model=args.chat_model,
         allow_fallback_judge=args.allow_fallback_judge,
+        resume_dir=args.resume_dir,
+        api_timeout=args.api_timeout,
+        api_retries=args.api_retries,
+        max_llm_attack_posts=args.max_llm_attack_posts,
+        skip_llm_attack_api=args.skip_llm_attack_api,
     )
 
 

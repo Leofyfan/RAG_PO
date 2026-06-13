@@ -15,7 +15,7 @@ def flatten_results(results_path: str | Path, csv_path: str | Path | None = None
     csv_path = Path(csv_path)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     fields = [
-        "event", "attack", "ratio", "defense", "retrieval_purity", "poison_hit",
+        "event", "query_variant_index", "repeat", "query_variant", "attack", "ratio", "defense", "retrieval_purity", "poison_hit",
         "avg_poison_rank", "asr", "filter_precision", "filter_recall",
         "factual_accuracy", "misinfo_propagation",
         "uncertainty_expression", "overall_trustworthiness",
@@ -30,6 +30,9 @@ def flatten_results(results_path: str | Path, csv_path: str | Path | None = None
             defense = row.get("defense_metrics", {})
             writer.writerow({
                 "event": row.get("event"),
+                "query_variant_index": row.get("query_variant_index", 0),
+                "repeat": row.get("repeat", 0),
+                "query_variant": row.get("query_variant") or row.get("query"),
                 "attack": row.get("attack"),
                 "ratio": row.get("ratio"),
                 "defense": row.get("defense"),
@@ -154,6 +157,8 @@ def _kpi_cards(rows: list[dict]) -> str:
 def _table(rows: list[dict]) -> str:
     columns = [
         ("event", "Event"),
+        ("query_variant_index", "Q"),
+        ("repeat", "R"),
         ("attack", "Attack"),
         ("ratio", "Ratio"),
         ("defense", "Defense"),
@@ -168,6 +173,8 @@ def _table(rows: list[dict]) -> str:
     for row in rows:
         values = {
             "event": row.get("event"),
+            "query_variant_index": row.get("query_variant_index", 0),
+            "repeat": row.get("repeat", 0),
             "attack": row.get("attack"),
             "ratio": row.get("ratio"),
             "defense": row.get("defense"),
@@ -185,7 +192,17 @@ def build_html_report(results_path: str | Path, out_path: str | Path | None = No
     """Render a self-contained HTML/SVG report for a results.json file."""
     results_path = Path(results_path)
     rows = json.loads(results_path.read_text(encoding="utf-8"))
-    rows = sorted(rows, key=lambda row: (str(row.get("event")), str(row.get("attack")), _num(row.get("ratio")), str(row.get("defense"))))
+    rows = sorted(
+        rows,
+        key=lambda row: (
+            str(row.get("event")),
+            str(row.get("attack")),
+            _num(row.get("ratio")),
+            str(row.get("defense")),
+            _num(row.get("query_variant_index")),
+            _num(row.get("repeat")),
+        ),
+    )
     if out_path is None:
         out_path = results_path.with_name("report.html")
     out_path = Path(out_path)

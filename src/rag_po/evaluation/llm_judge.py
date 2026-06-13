@@ -73,11 +73,33 @@ def judge_summary(
     allow_fallback: bool = False,
 ) -> dict[str, object]:
     messages = build_judge_messages(query, clean_summary, eval_summary, retrieved_docs)
+    last_error: Exception | None = None
     try:
-        content = client.chat(messages, temperature=0.0, cache_namespace="judges")
-        result = parse_judge_json(content)
-        result["raw_response"] = content
-        return result
+        for attempt in range(4):
+            attempt_messages = messages
+            namespace = "judges" if attempt == 0 else f"judges_retry_{attempt}"
+            if attempt:
+                attempt_messages = messages + [
+                    {
+                        "role": "user",
+                        "content": (
+                            "The previous response was not valid JSON. Return only one minified JSON object "
+                            "with exactly these keys: factual_accuracy, misinfo_propagation, "
+                            "uncertainty_expression, overall_trustworthiness, reasoning. No markdown."
+                        ),
+                    }
+                ]
+            content = client.chat(attempt_messages, temperature=0.0, cache_namespace=namespace, max_tokens=700)
+            try:
+                result = parse_judge_json(content)
+                result["raw_response"] = content
+                result["judge_retry_attempts"] = attempt
+                return result
+            except Exception as exc:
+                last_error = exc
+        if last_error:
+            raise last_error
+        raise ValueError("judge did not return a parseable response")
     except Exception as exc:
         if not allow_fallback:
             raise
